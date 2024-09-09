@@ -1,6 +1,6 @@
 {
 	"name": "socialapp",
-	"version": "0.1.5",
+	"version": "0.0.1",
 	"private": true,
 	"scripts": {
 		"dev": "vite dev --host --open",
@@ -20,7 +20,6 @@
 	"type": "module",
 	"dependencies": {
 		"@barba/core": "^2.10.3",
-		"browser-image-compression": "^2.0.2",
 		"firebase": "^10.13.1",
 		"gsap": "^3.12.5"
 	}

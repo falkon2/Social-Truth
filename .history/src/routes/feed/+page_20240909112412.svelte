@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
   import { db, auth } from '$lib/firebase';
-  import { deletePost } from '$lib/firestore';
   import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
   import { goto } from '$app/navigation';
   import { fade } from 'svelte/transition';
@@ -21,7 +20,7 @@
 
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
     const postUnsubscribe = onSnapshot(q, (snapshot) => {
-      posts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       loading = false;
     });
 
@@ -36,18 +35,6 @@
       goto(`/post/${postId}`);
     } else {
       goto('/login');
-    }
-  }
-
-  async function handleDeletePost(postId) {
-    if (confirm("Are you sure you want to delete this post?")) {
-      try {
-        await deletePost(postId);
-        posts = posts.filter(post => post.id !== postId);
-      } catch (error) {
-        console.error("Error deleting post:", error);
-        alert("Failed to delete post. Please try again.");
-      }
     }
   }
 </script>
@@ -74,14 +61,6 @@
           {/if}
           <p class="text-sm text-[#888888]">Posted by {post.authorName}</p>
           <p class="text-sm text-[#888888]">Votes: {post.votes}</p>
-          {#if user && user.uid === post.authorId}
-            <button
-              on:click={() => handleDeletePost(post.id)}
-              class="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
-            >
-              Delete Post
-            </button>
-          {/if}
         </div>
       {/each}
     </div>

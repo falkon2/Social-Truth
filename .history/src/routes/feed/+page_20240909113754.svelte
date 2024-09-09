@@ -1,8 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { db, auth } from '$lib/firebase';
-  import { deletePost } from '$lib/firestore';
-  import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+  import { auth } from '$lib/firebase';
+  import { getPosts, deletePost } from './firestore';
   import { goto } from '$app/navigation';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -11,7 +10,7 @@
   let user = null;
   let loading = true;
 
-  onMount(() => {
+  onMount(async () => {
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
       user = firebaseUser;
       if (!user) {
@@ -19,24 +18,19 @@
       }
     });
 
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
-    const postUnsubscribe = onSnapshot(q, (snapshot) => {
-      posts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    try {
+      posts = await getPosts();
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+    } finally {
       loading = false;
-    });
+    }
 
-    return () => {
-      unsubscribe();
-      postUnsubscribe();
-    };
+    return unsubscribe;
   });
 
   function goToPost(postId) {
-    if (user) {
-      goto(`/post/${postId}`);
-    } else {
-      goto('/login');
-    }
+    goto(`/post/${postId}`);
   }
 
   async function handleDeletePost(postId) {
@@ -46,7 +40,6 @@
         posts = posts.filter(post => post.id !== postId);
       } catch (error) {
         console.error("Error deleting post:", error);
-        alert("Failed to delete post. Please try again.");
       }
     }
   }

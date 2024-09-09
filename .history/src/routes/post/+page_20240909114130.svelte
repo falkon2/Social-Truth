@@ -1,15 +1,16 @@
 <script>
   import { onMount } from 'svelte';
   import { db, auth } from '$lib/firebase';
-  import { deletePost } from '$lib/firestore';
   import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
   import { goto } from '$app/navigation';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import { deletePost } from '$lib/firestore';
 
   let posts = [];
   let user = null;
   let loading = true;
+  let error = null;
 
   onMount(() => {
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
@@ -19,24 +20,37 @@
       }
     });
 
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
-    const postUnsubscribe = onSnapshot(q, (snapshot) => {
-      posts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      loading = false;
-    });
+    const postsQuery = query(
+      collection(db, 'posts'),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+
+    const postsUnsubscribe = onSnapshot(
+      postsQuery,
+      (snapshot) => {
+        posts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate().toLocaleString() || 'Unknown date'
+        }));
+        loading = false;
+      },
+      (err) => {
+        console.error("Error fetching posts:", err);
+        error = "Failed to load posts. Please try again later.";
+        loading = false;
+      }
+    );
 
     return () => {
       unsubscribe();
-      postUnsubscribe();
+      postsUnsubscribe();
     };
   });
 
   function goToPost(postId) {
-    if (user) {
-      goto(`/post/${postId}`);
-    } else {
-      goto('/login');
-    }
+    goto(`/post/${postId}`);
   }
 
   async function handleDeletePost(postId) {
@@ -44,8 +58,8 @@
       try {
         await deletePost(postId);
         posts = posts.filter(post => post.id !== postId);
-      } catch (error) {
-        console.error("Error deleting post:", error);
+      } catch (err) {
+        console.error("Error deleting post:", err);
         alert("Failed to delete post. Please try again.");
       }
     }
@@ -57,6 +71,8 @@
 
   {#if loading}
     <p class="text-[#f0f0f0]">Loading posts...</p>
+  {:else if error}
+    <p class="text-red-500">{error}</p>
   {:else if posts.length === 0}
     <p class="text-[#f0f0f0]">No posts yet. Be the first to create a post!</p>
   {:else}
@@ -72,7 +88,7 @@
               <video src={post.mediaUrl} controls class="w-full h-64 object-cover rounded-lg mb-4"></video>
             {/if}
           {/if}
-          <p class="text-sm text-[#888888]">Posted by {post.authorName}</p>
+          <p class="text-sm text-[#888888]">Posted by {post.authorName} on {post.createdAt}</p>
           <p class="text-sm text-[#888888]">Votes: {post.votes}</p>
           {#if user && user.uid === post.authorId}
             <button

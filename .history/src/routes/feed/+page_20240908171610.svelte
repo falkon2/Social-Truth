@@ -1,0 +1,78 @@
+<script>
+  import { onMount } from 'svelte';
+  import { db, auth } from '$lib/firebase';
+  import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
+  import { goto } from '$app/navigation';
+
+  let posts = [];
+  let user = null;
+
+  onMount(() => {
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      user = firebaseUser;
+      if (!user) {
+        goto('/login');
+      }
+    });
+
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
+    const postUnsubscribe = onSnapshot(q, (snapshot) => {
+      posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    });
+
+    return () => {
+      unsubscribe();
+      postUnsubscribe();
+    };
+  });
+
+  function goToPost(postId) {
+    if (user) {
+      goto(`/post/${postId}`);
+    } else {
+      goto('/login');
+    }
+  }
+
+  async function handleVote(postId, voteIncrement) {
+    if (!user) {
+      alert('You must be logged in to vote.');
+      return;
+    }
+    try {
+      const postRef = doc(db, 'posts', postId);
+      await updateDoc(postRef, {
+        votes: increment(voteIncrement)
+      });
+    } catch (error) {
+      console.error("Error updating vote:", error);
+      alert('Failed to update vote. Please try again.');
+    }
+  }
+</script>
+
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-4xl font-bold mb-8 text-[#88ce02]">Feed</h1>
+
+  <div class="space-y-8">
+    {#each posts as post}
+      <div class="bg-[#2a2a2a] p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-semibold mb-2 text-[#f0f0f0] cursor-pointer" on:click={() => goToPost(post.id)}>{post.title}</h2>
+        <p class="text-[#b0b0b0] mb-4">{post.content}</p>
+        {#if post.mediaUrl}
+          {#if post.mediaType === 'image'}
+            <img src={post.mediaUrl} alt={post.title} class="w-full h-64 object-cover rounded-lg mb-4">
+          {:else if post.mediaType === 'video'}
+            <video src={post.mediaUrl} controls class="w-full h-64 object-cover rounded-lg mb-4"></video>
+          {/if}
+        {/if}
+        <p class="text-sm text-[#888888]">Posted by {post.authorName}</p>
+        <div class="flex items-center mt-2">
+          <button on:click={() => handleVote(post.id, 1)} class="bg-green-500 text-white px-2 py-1 rounded mr-2">Upvote</button>
+          <button on:click={() => handleVote(post.id, -1)} class="bg-red-500 text-white px-2 py-1 rounded mr-2">Downvote</button>
+          <span class="text-[#888888]">Votes: {post.votes}</span>
+        </div>
+      </div>
+    {/each}
+  </div>
+</div>

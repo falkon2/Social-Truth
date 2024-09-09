@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { db, storage, auth } from '$lib/firebase';
-  import { createPost } from '$lib/firestore';
+  import { createPost } from './firestore';
   import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
   import { goto } from '$app/navigation';
 
