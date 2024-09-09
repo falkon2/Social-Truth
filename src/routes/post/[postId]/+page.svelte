@@ -10,26 +10,29 @@
     let loading = true;
   
     onMount(async () => {
-      const unsubscribe = auth.onAuthStateChanged((user) => {
-        currentUser = user;
-      });
-  
-      try {
-        const { postId } = $page.params;
-        const postDoc = await getDoc(doc(db, 'posts', postId));
-        if (postDoc.exists()) {
-          post = { id: postDoc.id, ...postDoc.data() };
-        } else {
-          error = "Post not found";
-        }
-      } catch (err) {
-        error = err.message;
-      } finally {
-        loading = false;
-      }
-  
-      return unsubscribe;
-    });
+  const unsubscribe = auth.onAuthStateChanged((user) => {
+    currentUser = user;
+    if (!currentUser) {
+      goto('/login'); // Redirect immediately if the user is not logged in.
+    }
+  });
+
+  try {
+    const { postId } = $page.params;
+    const postDoc = await getDoc(doc(db, 'posts', postId));
+    if (postDoc.exists()) {
+      post = { id: postDoc.id, ...postDoc.data() };
+    } else {
+      error = "Post not found";
+    }
+  } catch (err) {
+    error = err.message;
+  } finally {
+    loading = false;
+  }
+
+  return unsubscribe;
+});
   
     async function handleVote(incrementValue) {
       if (!currentUser) {

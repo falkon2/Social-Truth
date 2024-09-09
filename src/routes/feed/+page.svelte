@@ -12,32 +12,32 @@
   let loading = true;
 
   onMount(() => {
-    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
-      user = firebaseUser;
-      if (!user) {
-        goto('/login');
-      }
-    });
-
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
-    const postUnsubscribe = onSnapshot(q, (snapshot) => {
-      posts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      loading = false;
-    });
-
-    return () => {
-      unsubscribe();
-      postUnsubscribe();
-    };
-  });
-
-  function goToPost(postId) {
-    if (user) {
-      goto(`/post/${postId}`);
-    } else {
+  const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+    user = firebaseUser;
+    loading = false; // Ensure that loading state is false only after checking auth state.
+    if (!user) {
       goto('/login');
     }
+  });
+
+  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
+  const postUnsubscribe = onSnapshot(q, (snapshot) => {
+    posts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+  });
+
+  return () => {
+    unsubscribe();
+    postUnsubscribe();
+  };
+});
+
+function goToPost(postId) {
+  if (!loading && user) { // Make sure auth check is complete.
+    goto(`/post/${postId}`);
+  } else {
+    goto('/login');
   }
+}
 
   async function handleDeletePost(postId) {
     if (confirm("Are you sure you want to delete this post?")) {
